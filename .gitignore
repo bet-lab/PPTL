@@ -1,0 +1,6 @@
+__pycache__
+darts_logs
+# ignored by lakectl local
+datasets/*
+# End ignored by lakectl local
+.venv
