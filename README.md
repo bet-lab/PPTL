@@ -210,6 +210,26 @@ python scripts/transfer_tide.py --bid <building_id> --mode <mode> --n-sources <n
 - `last_test_loss` / `best_test_loss`: Test losses (MSE)
 - `run_id`: MLFlow run ID
 
+### 6. `scripts/visualize_forecast.py`
+
+Visualize the forecast of a single fine-tuned TiDE checkpoint against the ground truth. **Requires Steps 1–4** to have been completed for the target building.
+
+**Usage:**
+```bash
+uv run python scripts/visualize_forecast.py --bid <building_id> --mode <mode> [--n <n_sources>] [--output <path>]
+```
+
+**Arguments:**
+- `--bid`: Target building ID (integer)
+- `--mode`: Transfer mode — `best` (Closest), `worst` (Farthest), or `none` (No-TL)
+- `--n`: Number of source buildings (default: 0, ignored if mode=none)
+- `--output`: Custom output PNG path (optional)
+
+**Prerequisites:**
+- Fine-tuned checkpoint must exist in `output/assets/tide_transfer/`
+- Dataset must be available
+
+
 ## Hardcoded File Paths
 
 All scripts resolve paths relative to the script file location. The following table documents key paths:
@@ -241,7 +261,8 @@ output/assets/
 ├── tide_transfer/                                  # Fine-tuning checkpoints
 ├── similarities.json                               # Building similarity scores
 ├── tide-hypertune.db                               # Optuna study database
-└── transfer_learning.db                            # Transfer learning results
+├── transfer_learning.db                            # Transfer learning results
+└── forecast_b{bid}_*.png                           # Single-model forecast plots
 ```
 
 ## Usage Examples
@@ -266,6 +287,9 @@ python scripts/transfer_tide.py --bid 0 --mode best --n-sources 4 --device 0
 
 # No-TL baseline comparison
 python scripts/transfer_tide.py --bid 0 --mode none --device 0
+
+# Visualize a single model's forecast
+uv run python scripts/visualize_forecast.py --bid 0 --mode best --n 4
 ```
 
 ### Batch Processing (Shell Scripts)
@@ -303,6 +327,7 @@ PPTL/
 │   ├── calculate_similarity.py    # Step 2: Cosine similarity calculation
 │   ├── train_tide.py              # Step 3: TiDE pretraining
 │   ├── transfer_tide.py           # Step 4: Fine-tuning and evaluation
+│   ├── visualize_forecast.py      # Single-model forecast visualization
 │   └── *.sh                       # Batch processing scripts
 ├── utils/                         # Utility functions
 │   └── data.py                    # Data loading and preprocessing
