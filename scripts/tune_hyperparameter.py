@@ -117,7 +117,7 @@ if __name__ == "__main__":
     print('Device:', device)
 
     # Create datasets.
-    csv_loader = CSVLoader('../datasets/Cambridge-Estates-Building-Energy-Archive')
+    csv_loader = CSVLoader(str(_SCRIPT_DIR.parent / 'datasets' / 'Cambridge-Estates-Building-Energy-Archive'))
 
     series = []
     future_covariates = []
@@ -139,8 +139,9 @@ if __name__ == "__main__":
 
     # Create study if not exists.
     study_name = "tide-hypertune"
+    db_path = _SCRIPT_DIR.parent / 'output' / 'assets' / 'tide-hypertune.db'
     study = optuna.create_study(
-        study_name=study_name, storage="sqlite:///../output/assets/tide-hypertune.db",
+        study_name=study_name, storage=f"sqlite:///{db_path}",
         load_if_exists=True,
     )
                 

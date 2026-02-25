@@ -13,7 +13,7 @@ from utils.data import (
 from ts2vec.ts2vec import TS2Vec
 
 
-csv_loader = CSVLoader('../datasets/Cambridge-Estates-Building-Energy-Archive')
+csv_loader = CSVLoader(str(_SCRIPT_DIR.parent / 'datasets' / 'Cambridge-Estates-Building-Energy-Archive'))
 
 
 def bid_2_X(bid, start, end):

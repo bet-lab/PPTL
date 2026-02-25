@@ -57,7 +57,8 @@ def create_model(device):
 
 def get_source_bids(bid, mode, n_sources):
     # Import json.
-    with open('../output/assets/similarities.json') as f:
+    sim_path = _SCRIPT_DIR.parent / 'output' / 'assets' / 'similarities.json'
+    with open(sim_path) as f:
         data = json.load(f)
 
     bids = data[str(bid)]['bid']
@@ -81,7 +82,7 @@ def main():
     if args.mode == 'all' and args.n_sources > 0:
         raise ValueError('Invalid mode and n_sources combination.')
 
-    csv_loader = CSVLoader('../datasets/Cambridge-Estates-Building-Energy-Archive')
+    csv_loader = CSVLoader(str(_SCRIPT_DIR.parent / 'datasets' / 'Cambridge-Estates-Building-Energy-Archive'))
 
     series = []
     future_covariates = []
@@ -119,10 +120,8 @@ def main():
     )
 
     # Just save last model.
-    model.save(
-        '../output/assets/weights/tide_bid_{}_{}_{}.pt'
-        .format(args.bid, args.mode, args.n_sources)
-    )
+    weights_path = _SCRIPT_DIR.parent / 'output' / 'assets' / 'weights' / 'tide_bid_{}_{}_{}.pt'.format(args.bid, args.mode, args.n_sources)
+    model.save(str(weights_path))
 
 
 if __name__ == '__main__':

@@ -13,7 +13,7 @@ from utils.data import (
 from ts2vec.ts2vec import TS2Vec
 
 
-csv_loader = CSVLoader('../datasets/Cambridge-Estates-Building-Energy-Archive')
+csv_loader = CSVLoader(str(_SCRIPT_DIR.parent / 'datasets' / 'Cambridge-Estates-Building-Energy-Archive'))
 
 
 def bid_2_X(bid, start, end):
@@ -85,11 +85,12 @@ if __name__ == '__main__':
     sim_dict = {}
     for bid in csv_loader.building_ids:
         print(bid)
-        model.load(f'../output/assets/weights/encoder_b{bid}.pt')
+        model.load(str(_SCRIPT_DIR.parent / 'output' / 'assets' / 'weights' / f'encoder_b{bid}.pt'))
         sims = calculate_similarities(model, bid)
         sim_dict[bid] = sims
 
     # Save as json.
-    with open('../output/assets/similarities.json', 'w') as f:
+    sim_path = _SCRIPT_DIR.parent / 'output' / 'assets' / 'similarities.json'
+    with open(sim_path, 'w') as f:
         json.dump(sim_dict, f, indent=4)
    

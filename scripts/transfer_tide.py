@@ -46,7 +46,7 @@ def create_database():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             bid INTEGER,
             mode TEXT,
-            n_targets INTEGER,
+            n_sources INTEGER,
             last_val_loss REAL,
             best_val_loss REAL,
             last_test_loss REAL,
@@ -59,7 +59,7 @@ def create_database():
 
 
 def save_to_database(
-    bid, mode, n_targets,
+    bid, mode, n_sources,
     last_val_loss, best_val_loss,
     last_test_loss, best_test_loss,
     run_id,
@@ -78,19 +78,20 @@ def save_to_database(
         Validation loss.
     """
 
-    with sqlite3.connect('../output/assets/transfer_learning.db') as conn:
+    db_path = _SCRIPT_DIR.parent / 'output' / 'assets' / 'transfer_learning.db'
+    with sqlite3.connect(str(db_path)) as conn:
         cursor = conn.cursor()
 
         cursor.execute('''
             INSERT INTO transfer_learning
-            (bid, mode, n_targets, last_val_loss, best_val_loss, last_test_loss, best_test_loss, run_id)
+            (bid, mode, n_sources, last_val_loss, best_val_loss, last_test_loss, best_test_loss, run_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-            (bid, mode, n_targets, last_val_loss, best_val_loss, last_test_loss, best_test_loss, run_id)
+            (bid, mode, n_sources, last_val_loss, best_val_loss, last_test_loss, best_test_loss, run_id)
         )
         conn.commit()
 
 
-def create_model(device, lr_scale, work_dir='../output/assets/tide_transfer'):
+def create_model(device, lr_scale, work_dir=str(_SCRIPT_DIR.parent / 'output' / 'assets' / 'tide_transfer')):
     return TiDEModel(
         input_chunk_length=7 * 24,
         output_chunk_length=24,
@@ -131,7 +132,7 @@ def create_model(device, lr_scale, work_dir='../output/assets/tide_transfer'):
 
 
 def main():
-    csv_loader = CSVLoader('../datasets/Cambridge-Estates-Building-Energy-Archive')
+    csv_loader = CSVLoader(str(_SCRIPT_DIR.parent / 'datasets' / 'Cambridge-Estates-Building-Energy-Archive'))
 
     # Transfer learning (fine-tuning on target building).
     data = make_time_series_dict(
@@ -145,10 +146,8 @@ def main():
     if args.mode != 'none':
         # Smaller learning rate for transfer learning.
         model = create_model(device=args.device, lr_scale=0.1)
-        model.load_weights(
-            '../output/assets/weights/tide_bid_{}_{}_{}.pt'
-            .format(args.bid, args.mode, args.n_sources)
-        )
+        weights_path = _SCRIPT_DIR.parent / 'output' / 'assets' / 'weights' / 'tide_bid_{}_{}_{}.pt'.format(args.bid, args.mode, args.n_sources)
+        model.load_weights(str(weights_path))
     else:
         model = create_model(device=args.device, lr_scale=1)
 
@@ -162,15 +161,14 @@ def main():
         epochs=-1,
     )
 
-    # Just save last model.
-    # model.save('../assets/weights/tide_transfer_bid_{}_{}.pt'.format(args.bid, args.mode))
+    # Extract losses from final training run.
     last_val_loss = model.trainer.callback_metrics['val_loss'].cpu().numpy().item()
     best_val_loss = model.trainer.early_stopping_callback.best_score.cpu().numpy().item()
 
     # Load best model via checkpoint to extract weights without static attribute mismatch.
     dummy_model = TiDEModel.load_from_checkpoint(
         model_name='tide_bid_{}_{}_{}'.format(args.bid, args.mode, args.n_sources),
-        work_dir='../output/assets/tide_transfer',
+        work_dir=str(_SCRIPT_DIR.parent / 'output' / 'assets' / 'tide_transfer'),
         best=True,
     )
 
@@ -204,7 +202,7 @@ def main():
     # Load last model.
     dummy_model = TiDEModel.load_from_checkpoint(
         model_name='tide_bid_{}_{}_{}'.format(args.bid, args.mode, args.n_sources),
-        work_dir='../output/assets/tide_transfer',
+        work_dir=str(_SCRIPT_DIR.parent / 'output' / 'assets' / 'tide_transfer'),
         best=False,
     )
 
