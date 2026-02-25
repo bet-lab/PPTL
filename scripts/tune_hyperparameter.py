@@ -1,5 +1,8 @@
 import sys
-sys.path.append('..')
+from pathlib import Path
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(_SCRIPT_DIR.parent))
 import warnings
 import optuna
 
@@ -141,4 +144,4 @@ if __name__ == "__main__":
         load_if_exists=True,
     )
                 
-    study.optimize(objective, n_trials=200)
+    study.optimize(objective, n_trials=400)

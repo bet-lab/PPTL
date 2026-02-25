@@ -1,5 +1,9 @@
 import sys
-sys.path.append('..')
+from pathlib import Path
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(_SCRIPT_DIR.parent))
+
 import sqlite3
 from tempfile import TemporaryDirectory
 from argparse import ArgumentParser
@@ -15,7 +19,7 @@ from utils.data import CSVLoader, make_time_series_dict
 parser = ArgumentParser()
 parser.add_argument('--bid', type=int)
 parser.add_argument('--mode', choices=['best', 'worst', 'all', 'none'])
-parser.add_argument('--n-targets', type=int, default=0)
+parser.add_argument('--n-sources', type=int, default=0)
 parser.add_argument('--device', type=int, default=0)
 args = parser.parse_args()
 
@@ -30,8 +34,11 @@ def create_database():
     - best_val_loss: Best validation loss.
     - run_id: MLFlow run id.
     """
+    assets_dir = _SCRIPT_DIR.parent / 'output' / 'assets'
+    assets_dir.mkdir(parents=True, exist_ok=True)
+    (assets_dir / 'tide_transfer').mkdir(exist_ok=True)
 
-    with sqlite3.connect('../output/assets/transfer_learning.db') as conn:
+    with sqlite3.connect(str(assets_dir / 'transfer_learning.db')) as conn:
         cursor = conn.cursor()
 
         cursor.execute('''
@@ -87,6 +94,7 @@ def create_model(device, lr_scale, work_dir='../output/assets/tide_transfer'):
     return TiDEModel(
         input_chunk_length=7 * 24,
         output_chunk_length=24,
+        batch_size=256,
 
         # Last update 2024-07-03.
         hidden_size=256,
@@ -101,7 +109,7 @@ def create_model(device, lr_scale, work_dir='../output/assets/tide_transfer'):
         force_reset=True,
         save_checkpoints=True,
         work_dir=work_dir,
-        model_name='tide_bid_{}_{}_{}'.format(args.bid, args.mode, args.n_targets),
+        model_name='tide_bid_{}_{}_{}'.format(args.bid, args.mode, args.n_sources),
         optimizer_kwargs={
             'lr': 0.00053954 * lr_scale,
         },
@@ -113,7 +121,7 @@ def create_model(device, lr_scale, work_dir='../output/assets/tide_transfer'):
             'callbacks': [
                 EarlyStopping(
                     monitor="val_loss",
-                    patience=10,
+                    patience=5,
                     mode='min',
                 ),
             ],
@@ -125,17 +133,10 @@ def create_model(device, lr_scale, work_dir='../output/assets/tide_transfer'):
 def main():
     csv_loader = CSVLoader('../datasets/Cambridge-Estates-Building-Energy-Archive')
 
-    # Transfer learning.
+    # Transfer learning (fine-tuning on target building).
     data = make_time_series_dict(
         bid=args.bid,
         csv_loader=csv_loader,
-        # train_range=('2009-01-01', '2009-02-22'),
-        # 14 = 22 - 7 - 1.위에서 2009-02-21까지 데이터를 사용, val 데이터의
-        # 시작이 2009-02-14이면 forecasting 첫 영역은 02-22일이 됨. 따라서 예측이
-        # 겹치는 경우는 없음.
-        # val_range=('2009-02-14', '2009-03-01'),
-        # test_range=('2009-03-01', '2009-05-01'),
-
         train_range=('2010-01-01', '2010-03-01'),
         val_range=('2010-03-01', '2010-05-01'),
         test_range=('2010-03-01', '2010-05-01'),
@@ -146,7 +147,7 @@ def main():
         model = create_model(device=args.device, lr_scale=0.1)
         model.load_weights(
             '../output/assets/weights/tide_bid_{}_{}_{}.pt'
-            .format(args.bid, args.mode, args.n_targets)
+            .format(args.bid, args.mode, args.n_sources)
         )
     else:
         model = create_model(device=args.device, lr_scale=1)
@@ -166,10 +167,9 @@ def main():
     last_val_loss = model.trainer.callback_metrics['val_loss'].cpu().numpy().item()
     best_val_loss = model.trainer.early_stopping_callback.best_score.cpu().numpy().item()
 
-    # Load best model. 단순하게 weight를 저장하기 위해 불러옴. 아래와 같은 과정
-    # 을 거치지 않으면 모델의 static attribute size가 달라져서 weight를 불러올 수 없음.
+    # Load best model via checkpoint to extract weights without static attribute mismatch.
     dummy_model = TiDEModel.load_from_checkpoint(
-        model_name='tide_bid_{}_{}_{}'.format(args.bid, args.mode, args.n_targets),
+        model_name='tide_bid_{}_{}_{}'.format(args.bid, args.mode, args.n_sources),
         work_dir='../output/assets/tide_transfer',
         best=True,
     )
@@ -203,7 +203,7 @@ def main():
 
     # Load last model.
     dummy_model = TiDEModel.load_from_checkpoint(
-        model_name='tide_bid_{}_{}_{}'.format(args.bid, args.mode, args.n_targets),
+        model_name='tide_bid_{}_{}_{}'.format(args.bid, args.mode, args.n_sources),
         work_dir='../output/assets/tide_transfer',
         best=False,
     )
@@ -236,7 +236,7 @@ def main():
 
     # Save to database.
     save_to_database(
-        args.bid, args.mode, args.n_targets,
+        args.bid, args.mode, args.n_sources,
         last_val_loss, best_val_loss,
         last_test_loss, best_test_loss,
         model.trainer.logger.run_id

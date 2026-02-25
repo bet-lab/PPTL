@@ -1,6 +1,9 @@
 import sys
-sys.path.append('..')
-sys.path.append('../ts2vec')
+from pathlib import Path
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(_SCRIPT_DIR.parent))
+sys.path.insert(0, str(_SCRIPT_DIR.parent / 'ts2vec'))
 import json
 import numpy as np
 from scipy.spatial.distance import cosine
@@ -68,6 +71,9 @@ def calculate_similarities(model, bid):
 
 
 if __name__ == '__main__':
+    output_dir = _SCRIPT_DIR.parent / 'output' / 'assets'
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     model = TS2Vec(
         input_dims=len(NONTARGETS + TARGETS),
         device='cuda',

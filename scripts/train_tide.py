@@ -1,5 +1,8 @@
 import sys
-sys.path.append('..')
+from pathlib import Path
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(_SCRIPT_DIR.parent))
 import json
 from argparse import ArgumentParser
 from darts.models import TiDEModel
@@ -11,7 +14,7 @@ from utils.data import CSVLoader, make_time_series_dict
 parser = ArgumentParser()
 parser.add_argument('--bid', type=int)
 parser.add_argument('--mode', choices=['best', 'worst', 'all'])
-parser.add_argument('--n-targets', type=int, default=0)
+parser.add_argument('--n-sources', type=int, default=0)
 parser.add_argument('--device', type=int, default=0)
 args = parser.parse_args()
 
@@ -52,7 +55,7 @@ def create_model(device):
     )
 
 
-def get_source_bids(bid, mode, n_targets):
+def get_source_bids(bid, mode, n_sources):
     # Import json.
     with open('../output/assets/similarities.json') as f:
         data = json.load(f)
@@ -64,10 +67,10 @@ def get_source_bids(bid, mode, n_targets):
 
     if mode == 'best':
         # Best 3 bids.
-        return bids[:n_targets]
+        return bids[:n_sources]
     elif mode == 'worst':
-        # Worst 3 bids. Last one is ignored.
-        return bids[-n_targets:]
+        # Worst (farthest) bids.
+        return bids[-n_sources:]
     elif mode == 'all':
         return bids
     else:
@@ -75,15 +78,15 @@ def get_source_bids(bid, mode, n_targets):
 
 
 def main():
-    if args.mode == 'all' and args.n_targets > 0:
-        raise ValueError('Invalid mode and n_targets combination.')
+    if args.mode == 'all' and args.n_sources > 0:
+        raise ValueError('Invalid mode and n_sources combination.')
 
     csv_loader = CSVLoader('../datasets/Cambridge-Estates-Building-Energy-Archive')
 
     series = []
     future_covariates = []
     
-    bids = get_source_bids(bid=args.bid, mode=args.mode, n_targets=args.n_targets)
+    bids = get_source_bids(bid=args.bid, mode=args.mode, n_sources=args.n_sources)
 
     for bid in bids:
         data = make_time_series_dict(
@@ -118,7 +121,7 @@ def main():
     # Just save last model.
     model.save(
         '../output/assets/weights/tide_bid_{}_{}_{}.pt'
-        .format(args.bid, args.mode, args.n_targets)
+        .format(args.bid, args.mode, args.n_sources)
     )
 
 

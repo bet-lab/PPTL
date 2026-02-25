@@ -1,6 +1,9 @@
 import sys
-sys.path.append('..')
-sys.path.append('../ts2vec')
+from pathlib import Path
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(_SCRIPT_DIR.parent))
+sys.path.insert(0, str(_SCRIPT_DIR.parent / 'ts2vec'))
 import random
 import numpy as np
 import torch
@@ -79,6 +82,9 @@ def train_encoder(target_bid):
 
 
 if __name__ == "__main__":
+    weights_dir = _SCRIPT_DIR.parent / 'output' / 'assets' / 'weights'
+    weights_dir.mkdir(parents=True, exist_ok=True)
+
     for bid in csv_loader.building_ids:
         print(f'Training encoder for building {bid}...')
 
@@ -88,4 +94,4 @@ if __name__ == "__main__":
         torch.manual_seed(42)
 
         model = train_encoder(bid)
-        model.save(f'../output/assets/weights/encoder_b{bid}.pt')
+        model.save(str(weights_dir / f'encoder_b{bid}.pt'))
