@@ -3,7 +3,7 @@ from pathlib import Path
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPT_DIR.parent))
-sys.path.insert(0, str(_SCRIPT_DIR.parent / 'ts2vec'))
+sys.path.insert(1, str(_SCRIPT_DIR.parent / 'ts2vec'))
 import random
 import numpy as np
 import torch
