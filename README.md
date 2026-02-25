@@ -126,7 +126,7 @@ Fine-tunes the pretrained TiDE model on the target building's data (Jan–Feb 20
 
 **Usage:**
 ```bash
-python scripts/tune_hyperparameter.py <device_id>
+uv run python scripts/tune_hyperparameter.py <device_id>
 ```
 
 **Arguments:**
@@ -140,7 +140,7 @@ python scripts/tune_hyperparameter.py <device_id>
 
 **Usage:**
 ```bash
-python scripts/train_encoder.py
+uv run python scripts/train_encoder.py
 ```
 
 **Arguments:** None (processes all 89 buildings automatically)
@@ -156,7 +156,7 @@ python scripts/train_encoder.py
 
 **Usage:**
 ```bash
-python scripts/calculate_similarity.py
+uv run python scripts/calculate_similarity.py
 ```
 
 **Arguments:** None (processes all buildings automatically)
@@ -169,7 +169,7 @@ python scripts/calculate_similarity.py
 
 **Usage:**
 ```bash
-python scripts/train_tide.py --bid <building_id> --mode <mode> --n-sources <n> --device <device_id>
+uv run python scripts/train_tide.py --bid <building_id> --mode <mode> --n-sources <n> --device <device_id>
 ```
 
 **Arguments:**
@@ -193,7 +193,7 @@ python scripts/train_tide.py --bid <building_id> --mode <mode> --n-sources <n> -
 
 **Usage:**
 ```bash
-python scripts/transfer_tide.py --bid <building_id> --mode <mode> --n-sources <n> --device <device_id>
+uv run python scripts/transfer_tide.py --bid <building_id> --mode <mode> --n-sources <n> --device <device_id>
 ```
 
 **Arguments:**
@@ -271,22 +271,22 @@ output/assets/
 
 ```bash
 # Step 0: Hyperparameter tuning (one-time)
-python scripts/tune_hyperparameter.py 0
+uv run python scripts/tune_hyperparameter.py 0
 
 # Step 1: Train encoders for all buildings
-python scripts/train_encoder.py
+uv run python scripts/train_encoder.py
 
 # Step 2: Calculate similarities
-python scripts/calculate_similarity.py
+uv run python scripts/calculate_similarity.py
 
 # Step 3: Pretrain TiDE (example: building 0, Closest 4 sources)
-python scripts/train_tide.py --bid 0 --mode best --n-sources 4 --device 0
+uv run python scripts/train_tide.py --bid 0 --mode best --n-sources 4 --device 0
 
 # Step 4: Fine-tune and evaluate
-python scripts/transfer_tide.py --bid 0 --mode best --n-sources 4 --device 0
+uv run python scripts/transfer_tide.py --bid 0 --mode best --n-sources 4 --device 0
 
 # No-TL baseline comparison
-python scripts/transfer_tide.py --bid 0 --mode none --device 0
+uv run python scripts/transfer_tide.py --bid 0 --mode none --device 0
 
 # Visualize a single model's forecast
 uv run python scripts/visualize_forecast.py --bid 0 --mode best --n 4
