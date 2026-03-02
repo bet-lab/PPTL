@@ -23,12 +23,12 @@ The PPTL framework resolves this deadlock by learning similarity directly from a
 
 ## ✨ Key Results
 
-| Metric                                                | Value             |
-| :---------------------------------------------------- | :---------------- |
-| Median MSE reduction vs. No-TL baseline               | 27–31%            |
-| Configurations improved over No-TL baseline           | 99.2% (353 / 356) |
-| Maximum degradation vs. No-TL baseline (only 3 cases) | 2.2%              |
-| Communication bandwidth vs. federated learning        | 0.51%             |
+| Metric                                                               | Value             |
+| :------------------------------------------------------------------- | :---------------- |
+| Median MSE reduction vs. no-transfer-learning baseline               | 27–31%            |
+| Configurations improved over no-transfer-learning baseline           | 99.2% (353 / 356) |
+| Maximum degradation vs. no-transfer-learning baseline (only 3 cases) | 2.2%              |
+| Communication bandwidth vs. federated learning                       | 0.51%             |
 
 ---
 
@@ -36,24 +36,11 @@ The PPTL framework resolves this deadlock by learning similarity directly from a
 
 Three modular components work in sequence to enable metadata-free transfer learning:
 
-```
-┌─────────────────┐     ┌──────────────────────┐     ┌──────────────────┐
-│   🔍 Encoder    │ ──▶ │ 🎯 Strategy          │ ──▶ │  📈 Forecaster   │
-│   (TS2Vec)      │     │    Controller         │     │  (TiDE)          │
-│                 │     │                      │     │                  │
-│ Unsupervised    │     │ Cosine distance in   │     │ Lightweight      │
-│ contrastive     │     │ the learned space    │     │ MLP-based        │
-│ encoder maps    │     │ ranks candidate      │     │ encoder–decoder  │
-│ multivariate    │     │ sources → data-      │     │ pretrained on    │
-│ time series to  │     │ driven selection     │     │ selected sources │
-│ a representation│     │ without metadata     │     │ and fine-tuned   │
-│ space           │     │                      │     │ on target        │
-└─────────────────┘     └──────────────────────┘     └──────────────────┘
-```
+> Encoder (TS2Vec) → Strategy Controller → Forecaster (TiDE)
 
 - **Encoder** — [TS2Vec](https://github.com/yuezhihan/ts2vec): An unsupervised contrastive learning encoder that captures intrinsic temporal dynamics — diurnal cycling, seasonal periodicity, and load-shape dynamics — by enforcing _contextual consistency_. Rather than relying on data augmentation (which can distort physical signatures), TS2Vec augments the temporal context via timestamp masking, forcing the model to learn robust operational patterns.
 
-- **Strategy Controller**: Generates representation vectors for all buildings, then ranks sources by cosine distance to the target. Cosine distance is chosen for three reasons: (1) mathematical consistency with the encoder's contrastive loss, (2) alignment with percentile-based data normalization, and (3) computational efficiency ($O(1)$ per pair vs. DTW's $O(L^2)$).
+- **Strategy Controller**: Generates representation vectors for all buildings, then ranks sources by cosine distance to the target. Cosine distance is chosen for three reasons: (1) mathematical consistency with the encoder's contrastive loss, (2) alignment with percentile-based data normalization, and (3) computational efficiency ( $O(1)$ per pair vs. DTW's $O(L^2)$ ).
 
 - **Forecaster** — [TiDE](https://arxiv.org/abs/2304.08424): A Time-series Dense Encoder with $O(L)$ linear scaling and full parallel computation. TiDE integrates residual connections and covariate projections to capture both linear trends and complex nonlinear dependencies, while offering significant speed advantages over sequential architectures like RNNs and lower complexity than Transformers' $O(L^2)$.
 
@@ -168,8 +155,8 @@ uv run python scripts/train_tide.py --bid <building_id> --mode <mode> --n-source
 
 **Source selection strategies** (paper terminology in parentheses):
 
-- `best` (**Closest**) — Top $N_{S^*}$ most similar sources
-- `worst` (**Farthest**) — Bottom $N_{S^*}$ least similar sources
+- `best` (Closest) — Top $N_{S^*}$ most similar sources
+- `worst` (Farthest) — Bottom $N_{S^*}$ least similar sources
 - `all` — All 88 source buildings
 
 The paper systematically tests $N_{S^*} \in \{2, 4, 8, 16\}$.
@@ -206,19 +193,19 @@ uv run python scripts/transfer_tide.py --bid <building_id> --mode <mode> --n-sou
 ```
 
 - Transfer modes (`best`, `worst`, `all`): Learning rate scaled to 1/10 of the pretraining rate
-- No-TL baseline (`none`): Learning rate unscaled
+- No-transfer-learning baseline (`none`): Learning rate unscaled
 
 <details>
 <summary><strong>Output Database Schema</strong></summary>
 
-| Column                              | Description                            |
-| :---------------------------------- | :------------------------------------- |
-| `bid`                               | Building ID                            |
-| `mode`                              | Transfer learning mode                 |
-| `n_sources`                         | Number of source buildings ($N_{S^*}$) |
-| `last_val_loss` / `best_val_loss`   | Validation losses                      |
-| `last_test_loss` / `best_test_loss` | Test losses (MSE)                      |
-| `run_id`                            | MLFlow run ID                          |
+| Column                              | Description                              |
+| :---------------------------------- | :--------------------------------------- |
+| `bid`                               | Building ID                              |
+| `mode`                              | Transfer learning mode                   |
+| `n_sources`                         | Number of source buildings ( $N_{S^*}$ ) |
+| `last_val_loss` / `best_val_loss`   | Validation losses                        |
+| `last_test_loss` / `best_test_loss` | Test losses (MSE)                        |
+| `run_id`                            | MLFlow run ID                            |
 
 </details>
 
@@ -281,7 +268,7 @@ uv run python scripts/train_tide.py --bid 0 --mode best --n-sources 4 --device 0
 # Step 4: Fine-tune and evaluate
 uv run python scripts/transfer_tide.py --bid 0 --mode best --n-sources 4 --device 0
 
-# No-TL baseline comparison
+# No-transfer-learning baseline comparison
 uv run python scripts/transfer_tide.py --bid 0 --mode none --device 0
 
 # Visualize a single model's forecast
@@ -297,7 +284,7 @@ bash scripts/train_tide_worst.sh
 
 # Transfer learning for all buildings
 bash scripts/transfer_tide_best_worst.sh  # Closest + Farthest
-bash scripts/transfer_tide_none.sh        # No-TL baselines
+bash scripts/transfer_tide_none.sh        # No-transfer-learning baselines
 ```
 
 ### Querying Results
@@ -393,7 +380,7 @@ If you use this code, please cite:
 
 ## TS2Vec Library
 
-The `ts2vec/` directory contains a modified version of the TS2Vec codebase from the [official repository](https://github.com/yuezhihan/ts2vec). Only library version compatibility issues were resolved; no functional changes were made.
+The `ts2vec` directory contains a modified version of the TS2Vec codebase from the [official repository](https://github.com/yuezhihan/ts2vec). Only library version compatibility issues were resolved; no functional changes were made.
 
 ## License
 
