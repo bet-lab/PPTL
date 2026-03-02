@@ -38,11 +38,11 @@ Three modular components work in sequence to enable metadata-free transfer learn
 
 > Encoder (TS2Vec) → Strategy Controller → Forecaster (TiDE)
 
-- **Encoder** — [TS2Vec](https://github.com/yuezhihan/ts2vec): An unsupervised contrastive learning encoder that captures intrinsic temporal dynamics — diurnal cycling, seasonal periodicity, and load-shape dynamics — by enforcing _contextual consistency_. Rather than relying on data augmentation (which can distort physical signatures), TS2Vec augments the temporal context via timestamp masking, forcing the model to learn robust operational patterns.
+- **Encoder** — [TS2Vec](https://github.com/yuezhihan/ts2vec): An unsupervised time-series encoder that learns temporal patterns (daily cycles, seasonal trends, load shapes) directly from raw data without labels or metadata.
 
-- **Strategy Controller**: Generates representation vectors for all buildings, then ranks sources by cosine distance to the target. Cosine distance is chosen for three reasons: (1) mathematical consistency with the encoder's contrastive loss, (2) alignment with percentile-based data normalization, and (3) computational efficiency ( $O(1)$ per pair vs. DTW's $O(L^2)$ ).
+- **Strategy Controller**: Computes a similarity score (cosine distance) between each source building and the target in the learned representation space, then ranks and selects the most similar sources for pretraining.
 
-- **Forecaster** — [TiDE](https://arxiv.org/abs/2304.08424): A Time-series Dense Encoder with $O(L)$ linear scaling and full parallel computation. TiDE integrates residual connections and covariate projections to capture both linear trends and complex nonlinear dependencies, while offering significant speed advantages over sequential architectures like RNNs and lower complexity than Transformers' $O(L^2)$.
+- **Forecaster** — [TiDE](https://arxiv.org/abs/2304.08424): A lightweight MLP-based encoder–decoder for time-series forecasting. Scales linearly with input length and supports full parallel computation, making it efficient for deployment on resource-constrained systems.
 
 ---
 
@@ -50,7 +50,7 @@ Three modular components work in sequence to enable metadata-free transfer learn
 
 1. **Metadata-free transfer learning framework** — Enables effective transfer learning using exclusively anonymized time-series data, establishing a data-native methodology that bypasses reliance on metadata.
 
-2. **Representation distance as a transferability proxy** — Establishes that cosine distance in the learned representation space serves as an objective proxy for transfer success, replacing heuristic-based judgments with data-driven verification.
+2. **Representation distance as a transferability proxy** — Shows that similarity in the learned representation space reliably predicts transfer learning success, replacing manual heuristics with data-driven source selection.
 
 3. **Negative transfer as a manageable engineering risk** — Characterizes the trade-off between source quantity and similarity, identifying a distinct performance sweet spot and transforming negative transfer from an unpredictable risk into a systematic engineering decision.
 
@@ -60,16 +60,16 @@ Three modular components work in sequence to enable metadata-free transfer learn
 
 ## 🆚 Comparison with Federated Learning
 
-| Dimension                 | Federated Learning                                             | PPTL                                                        |
-| :------------------------ | :------------------------------------------------------------- | :---------------------------------------------------------- |
-| **Privacy approach**      | Structural locality (raw data stays on client)                 | Regulatory compliance (identifiers stripped before pooling) |
-| **Communication**         | High — continuous sync over many rounds (~608 MB)              | Minimal — single upload/download cycle (~3.1 MB)            |
-| **Client computation**    | Heavy — iterative local gradient computation (GPU required)    | Negligible — all training offloaded to server               |
-| **Non-IID robustness**    | Vulnerable — performance degrades with divergent distributions | Robust by design — automatically selects similar sources    |
-| **Model personalization** | Generic global model (averaged behavior)                       | Target-specific model (fine-tuned per building)             |
-| **Scalability**           | Bottlenecked by edge network reliability                       | Bounded by server storage/compute                           |
+| Dimension                 | Federated Learning                                                        | PPTL                                                        |
+| :------------------------ | :------------------------------------------------------------------------ | :---------------------------------------------------------- |
+| **Privacy approach**      | Structural locality (raw data stays on client)                            | Regulatory compliance (identifiers stripped before pooling) |
+| **Communication**         | High — continuous sync over many rounds (~608 MB)                         | Minimal — single upload/download cycle (~3.1 MB)            |
+| **Client computation**    | Heavy — iterative local gradient computation (GPU required)               | Negligible — all training offloaded to server               |
+| **Data heterogeneity**    | Vulnerable — performance degrades when building data differ significantly | Robust by design — automatically selects similar sources    |
+| **Model personalization** | Generic global model (averaged behavior)                                  | Target-specific model (fine-tuned per building)             |
+| **Scalability**           | Bottlenecked by edge network reliability                                  | Bounded by server storage/compute                           |
 
-> FL and PPTL are complementary, not competing. PPTL's similarity-based clustering can enhance FL by grouping clients into operationally compatible cohorts, directly addressing FL's non-IID vulnerability.
+> FL and PPTL are complementary, not competing. PPTL's similarity-based clustering can enhance FL by grouping buildings into operationally compatible cohorts, addressing FL's vulnerability to heterogeneous data.
 
 ---
 
@@ -85,7 +85,7 @@ A 16-month interval `[2009-01-01, 2010-05-01)` was curated to maximize gap-free 
 | Jan–Feb 2010 | Target data (fine-tuning & similarity) | 2 months  |
 | Mar–Apr 2010 | Test data (evaluation)                 | 2 months  |
 
-Features: 10 nontarget covariates (cyclical time encodings, weather variables) + 1 target feature (hourly electricity usage normalized via percentile-based transform).
+Features: 10 covariates (time-of-day, day-of-week, temperature, humidity, solar irradiance) + 1 target feature (hourly electricity usage).
 
 ---
 
@@ -97,7 +97,7 @@ The PPTL framework follows a 4-step sequential pipeline, preceded by a one-time 
 
 **Script:** `scripts/tune_hyperparameter.py`
 
-Performs hyperparameter optimization for the TiDE forecaster using Optuna (400 trials with Tree-structured Parzen Estimator and Asynchronous Successive Halving pruning).
+Performs hyperparameter optimization for the TiDE forecaster using Optuna (400 trials).
 
 ```bash
 uv run python scripts/tune_hyperparameter.py <device_id>
@@ -133,7 +133,7 @@ uv run python scripts/train_encoder.py
 
 **Script:** `scripts/calculate_similarity.py`
 
-Generates representation vectors and computes cosine distances between each target (Jan–Feb 2010) and source (Jan–Feb 2009). The 1-year temporal gap tests generalization robustness, ensuring the learned similarity is not merely a reflection of contemporaneous patterns.
+Generates representation vectors and computes similarity scores (cosine distance) between each target building (Jan–Feb 2010) and each source building (Jan–Feb 2009).
 
 ```bash
 uv run python scripts/calculate_similarity.py
@@ -153,13 +153,13 @@ Pretrains TiDE forecasters on source buildings selected by similarity ranking.
 uv run python scripts/train_tide.py --bid <building_id> --mode <mode> --n-sources <n> --device <device_id>
 ```
 
-**Source selection strategies** (paper terminology in parentheses):
+Source selection strategies (paper terminology in parentheses):
 
-- `best` (Closest) — Top $N_{S^*}$ most similar sources
-- `worst` (Farthest) — Bottom $N_{S^*}$ least similar sources
+- `best` (Closest) — Top N most similar sources
+- `worst` (Farthest) — Bottom N least similar sources
 - `all` — All 88 source buildings
 
-The paper systematically tests $N_{S^*} \in \{2, 4, 8, 16\}$.
+The paper tests N ∈ {2, 4, 8, 16}.
 
 <details>
 <summary><strong>TiDE Hyperparameters (selected via Optuna)</strong></summary>
@@ -198,14 +198,14 @@ uv run python scripts/transfer_tide.py --bid <building_id> --mode <mode> --n-sou
 <details>
 <summary><strong>Output Database Schema</strong></summary>
 
-| Column                              | Description                              |
-| :---------------------------------- | :--------------------------------------- |
-| `bid`                               | Building ID                              |
-| `mode`                              | Transfer learning mode                   |
-| `n_sources`                         | Number of source buildings ( $N_{S^*}$ ) |
-| `last_val_loss` / `best_val_loss`   | Validation losses                        |
-| `last_test_loss` / `best_test_loss` | Test losses (MSE)                        |
-| `run_id`                            | MLFlow run ID                            |
+| Column                              | Description                     |
+| :---------------------------------- | :------------------------------ |
+| `bid`                               | Building ID                     |
+| `mode`                              | Transfer learning mode          |
+| `n_sources`                         | Number of source buildings used |
+| `last_val_loss` / `best_val_loss`   | Validation losses               |
+| `last_test_loss` / `best_test_loss` | Test losses (MSE)               |
+| `run_id`                            | MLFlow run ID                   |
 
 </details>
 
