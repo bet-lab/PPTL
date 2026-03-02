@@ -17,18 +17,18 @@
 
 AI-driven forecasting offers a promising solution for optimal building energy control, yet is constrained by scarce labeled data and strict privacy regulations. While transfer learning can alleviate data scarcity by leveraging data from other buildings, conventional approaches rely on metadata — such as building type, climate zone, or occupancy schedules — that is unavailable in fully anonymized datasets.
 
-The **PPTL framework** resolves this deadlock by learning similarity **directly from anonymized time-series dynamics**. Using an unsupervised contrastive encoder, the framework maps each building's dynamics to high-dimensional representation vectors learned solely from temporal patterns. Cosine distance between representations guides source selection to pretrain a lightweight forecaster, which is then fine-tuned on limited target data. Leave-one-out experiments on **89 real-world buildings** validate that learned similarity strongly correlates with transfer performance.
+The PPTL framework resolves this deadlock by learning similarity directly from anonymized time-series dynamics. Using an unsupervised contrastive encoder, the framework maps each building's dynamics to high-dimensional representation vectors learned solely from temporal patterns. Cosine distance between representations guides source selection to pretrain a lightweight forecaster, which is then fine-tuned on limited target data. Leave-one-out experiments on 89 real-world buildings validate that learned similarity strongly correlates with transfer performance.
 
 ---
 
 ## ✨ Key Results
 
-| Metric                                          | Value                 |
-| :---------------------------------------------- | :-------------------- |
-| Median MSE reduction over no-transfer baselines | **27–31%**            |
-| Configurations with improved performance        | **99.2%** (353 / 356) |
-| Maximum degradation (only 3 cases)              | 2.2%                  |
-| Communication bandwidth vs. federated learning  | **0.51%**             |
+| Metric                                                | Value             |
+| :---------------------------------------------------- | :---------------- |
+| Median MSE reduction vs. No-TL baseline               | 27–31%            |
+| Configurations improved over No-TL baseline           | 99.2% (353 / 356) |
+| Maximum degradation vs. No-TL baseline (only 3 cases) | 2.2%              |
+| Communication bandwidth vs. federated learning        | 0.51%             |
 
 ---
 
@@ -67,7 +67,7 @@ Three modular components work in sequence to enable metadata-free transfer learn
 
 3. **Negative transfer as a manageable engineering risk** — Characterizes the trade-off between source quantity and similarity, identifying a distinct performance sweet spot and transforming negative transfer from an unpredictable risk into a systematic engineering decision.
 
-4. **Scalable deployment complementing federated learning** — Requires only **0.51%** of the communication bandwidth compared to federated learning while offloading all computation to the server, enabling deployment on legacy building systems.
+4. **Scalable deployment complementing federated learning** — Requires only 0.51% of the communication bandwidth compared to federated learning while offloading all computation to the server, enabling deployment on legacy building systems.
 
 ---
 
@@ -82,7 +82,7 @@ Three modular components work in sequence to enable metadata-free transfer learn
 | **Model personalization** | Generic global model (averaged behavior)                       | Target-specific model (fine-tuned per building)             |
 | **Scalability**           | Bottlenecked by edge network reliability                       | Bounded by server storage/compute                           |
 
-> **Key insight**: FL and PPTL are **complementary**, not competing. PPTL's similarity-based clustering can enhance FL by grouping clients into operationally compatible cohorts, directly addressing FL's non-IID vulnerability.
+> FL and PPTL are complementary, not competing. PPTL's similarity-based clustering can enhance FL by grouping clients into operationally compatible cohorts, directly addressing FL's non-IID vulnerability.
 
 ---
 
@@ -90,7 +90,7 @@ Three modular components work in sequence to enable metadata-free transfer learn
 
 The experiments use the [Cambridge University Estates Building Energy Archive](https://github.com/EECi/Cambridge-Estates-Building-Energy-Archive) — a fully anonymized dataset spanning 24 years (2000–2023) of hourly electricity usage, weather observations, and metadata for ~120 buildings at the University of Cambridge. Due to privacy, all buildings are identified only by randomized numerical indices with no metadata.
 
-A 16-month interval `[2009-01-01, 2010-05-01)` was curated to maximize gap-free coverage, yielding **89 buildings**:
+A 16-month interval `[2009-01-01, 2010-05-01)` was curated to maximize gap-free coverage, yielding 89 buildings:
 
 | Period       | Role                                   | Duration  |
 | :----------- | :------------------------------------- | :-------- |
@@ -98,13 +98,13 @@ A 16-month interval `[2009-01-01, 2010-05-01)` was curated to maximize gap-free 
 | Jan–Feb 2010 | Target data (fine-tuning & similarity) | 2 months  |
 | Mar–Apr 2010 | Test data (evaluation)                 | 2 months  |
 
-**Features**: 10 nontarget covariates (cyclical time encodings, weather variables) + 1 target feature (hourly electricity usage normalized via percentile-based transform).
+Features: 10 nontarget covariates (cyclical time encodings, weather variables) + 1 target feature (hourly electricity usage normalized via percentile-based transform).
 
 ---
 
 ## 🧪 Experimental Workflow
 
-The PPTL framework follows a **4-step sequential pipeline**, preceded by a one-time hyperparameter tuning step. Each step must be executed in order.
+The PPTL framework follows a 4-step sequential pipeline, preceded by a one-time hyperparameter tuning step. Each step must be executed in order.
 
 ### Step 0 · Hyperparameter Tuning _(one-time prerequisite)_
 
@@ -146,7 +146,7 @@ uv run python scripts/train_encoder.py
 
 **Script:** `scripts/calculate_similarity.py`
 
-Generates representation vectors and computes cosine distances between each target (Jan–Feb 2010) and source (Jan–Feb 2009). The **1-year temporal gap** tests generalization robustness, ensuring the learned similarity is not merely a reflection of contemporaneous patterns.
+Generates representation vectors and computes cosine distances between each target (Jan–Feb 2010) and source (Jan–Feb 2009). The 1-year temporal gap tests generalization robustness, ensuring the learned similarity is not merely a reflection of contemporaneous patterns.
 
 ```bash
 uv run python scripts/calculate_similarity.py
@@ -205,8 +205,8 @@ Fine-tunes the pretrained TiDE model on the target building's data (Jan–Feb 20
 uv run python scripts/transfer_tide.py --bid <building_id> --mode <mode> --n-sources <n> --device <device_id>
 ```
 
-- **Transfer modes** (`best`, `worst`, `all`): Learning rate scaled to **1/10** of the pretraining rate
-- **No-TL baseline** (`none`): Learning rate unscaled
+- Transfer modes (`best`, `worst`, `all`): Learning rate scaled to 1/10 of the pretraining rate
+- No-TL baseline (`none`): Learning rate unscaled
 
 <details>
 <summary><strong>Output Database Schema</strong></summary>
@@ -242,7 +242,7 @@ uv run python scripts/visualize_forecast.py --bid <building_id> --mode <mode> [-
 
 ### Prerequisites
 
-- Python 3.10 (Python 3.11 is **not** supported)
+- Python 3.10 (Python 3.11 is not supported)
 - CUDA-compatible GPU (recommended)
 - [`uv`](https://github.com/astral-sh/uv) package manager
 
